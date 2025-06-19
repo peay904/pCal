@@ -1,0 +1,6 @@
+[
+  { "name": "Car", "due_day": 27, "amount": "320" },
+  { "name": "Phone", "due_day": 17, "amount": "127" },
+  { "name": "Proton", "due_day": 10, "amount": "10" },
+  { "name": "State Farm", "due_day": 16, "amount": "220" }
+]
