@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <link rel="manifest" href="manifest.json">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bill Calendar">
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.css" rel="stylesheet"/>
   <style>
     body {
@@ -12,6 +17,8 @@
 
     #calendar {
       margin-bottom: 20px;
+      max-width: 100%;
+      overflow-x: auto;
     }
 
     #billForm {
@@ -22,149 +29,76 @@
       max-width: 400px;
     }
 
-    #billForm input {
+    #billForm input,
+    #billForm button {
       padding: 8px;
+      font-size: 18px;
+      height: 44px;
       border: 1px solid #ccc;
       border-radius: 4px;
-      font-size: 16px;
     }
 
     #billForm button {
-      padding: 10px;
       background: #0066ff;
       color: white;
       border: none;
-      border-radius: 4px;
-      font-size: 16px;
       cursor: pointer;
     }
 
-    #billList {
+    #selectedDayBills {
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    #billList div {
-      padding: 10px;
-      background: #f5f5f5;
-      border-radius: 4px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    #billList button {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    #billList button:first-of-type {
-      background: #ff4444;
-      color: white;
-    }
-
-    #billList button:last-of-type {
-      background: #4CAF50;
-      color: white;
-    }
-
-    @media (max-width: 768px) {
-      .fc .fc-toolbar {
-        flex-direction: column;
-        gap: 10px;
-      }
-      
-      .fc .fc-toolbar-title {
-        font-size: 1.2em;
-      }
-    }
-
-        .bill-item {
+    .bill-item {
       background: #f5f5f5;
       padding: 15px;
       border-radius: 8px;
-      margin-bottom: 10px;
     }
 
-    .bill-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 15px;
+    button, input {
+      transition: background 0.3s, color 0.3s, opacity 0.3s;
     }
 
-    .bill-details {
-      flex-grow: 1;
-    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #121212;
+        color: #f0f0f0;
+      }
 
-    .bill-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .edit-form {
-      display: none;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid #ddd;
-    }
-
-    .edit-form.active {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: opacity 0.2s;
-    }
-
-    .btn:hover {
-      opacity: 0.9;
-    }
-
-    .btn-delete {
-      background: #ff4444;
-      color: white;
-    }
-
-    .btn-edit {
-      background: #4CAF50;
-      color: white;
-    }
-
-    .btn-save {
-      background: #0066ff;
-      color: white;
-    }
-
-    .btn-cancel {
-      background: #666;
-      color: white;
+      #billForm input,
+      #billForm button,
+      .bill-item {
+        background: #1e1e1e;
+        color: #f0f0f0;
+        border-color: #333;
+      }
     }
   </style>
 </head>
-
 <body>
   <div id="calendar"></div>
+
   <form id="billForm">
-    <input name="name" placeholder="Bill Name" required/>
-    <input name="due_day" type="number" min="1" max="28" placeholder="Day" required/>
-    <input name="amount" type="number" step="0.01" placeholder="Amount" required/>
+    <input name="name" placeholder="Bill Name" required />
+    <input name="due_day" type="number" min="1" max="28" placeholder="Day" required />
+    <input name="amount" type="number" step="0.01" placeholder="Amount" required />
     <button type="submit">Add Bill</button>
   </form>
-  <div id="billList"></div>  
+
+  <div id="selectedDayBills"></div>
+
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
   <script src="script.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('Service worker registered:', reg))
+          .catch(err => console.error('Service worker registration failed:', err));
+      });
+    }
+  </script>  
 </body>
 </html>

@@ -1,147 +1,123 @@
-const calendarEl = document.getElementById('calendar');
-const calendar = new FullCalendar.Calendar(calendarEl, {
-  initialView: 'dayGridMonth',
-  events: info => {
-    return fetch('/api/bills?start=' + info.startStr + '&end=' + info.endStr)
-      .then(r => r.json())
-      .then(bills => {
-        return bills.flatMap(b => {
-          const events = [];
-          const start = new Date(info.start);
-          const end = new Date(info.end);
-          for(let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
-            events.push({
-              title: `${b.name} – $${b.amount}`,
-              start: new Date(d.getFullYear(), d.getMonth(), b.due_day).toISOString().split('T')[0]
-            });
-          }
-          return events;
-        });
-      });
-  }
-});
-calendar.render();
+let calendar;
+const billForm = document.getElementById("billForm");
+const selectedDayBills = document.getElementById("selectedDayBills");
+let bills = JSON.parse(localStorage.getItem("bills") || "[]");
 
-// Form submission handler
-document.getElementById('billForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const fd = Object.fromEntries(new FormData(e.target));
-  fetch('/api/bills', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(fd)
-  }).then(() => {
-    calendar.refetchEvents(); // refresh calendar :contentReference[oaicite:13]{index=13}
-    e.target.reset();
+document.addEventListener("DOMContentLoaded", function () {
+  const calendarEl = document.getElementById("calendar");
+
+  calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: window.innerWidth < 600 ? 'dayGridDay' : 'dayGridMonth',
+    selectable: true,
+    events: generateRecurringEvents(),
+    dateClick: function(info) {
+      showBillsForDay(parseInt(info.dateStr.split("-")[2]));
+    }
   });
+
+  calendar.render();
+  showBillsForDay(new Date().getDate());
 });
 
-function loadBills() {
-  fetch('/api/bills')
-    .then(res => res.json())
-    .then(bills => {
-      const billList = document.getElementById('billList');
-      billList.innerHTML = '';
-      bills.forEach(b => {
-        const div = document.createElement('div');
-        div.innerHTML = `
-          ${b.name} - $${b.amount} due on day ${b.due_day}
-          <button onclick="deleteBill('${b.id}')">Delete</button>
-          <button onclick="editBill('${b.id}')">Edit</button>
-        `;
-        billList.appendChild(div);
-      });
-    });
+billForm.addEventListener("submit", function (e) {
+  e.preventDefault();
+  const formData = new FormData(billForm);
+  const name = formData.get("name");
+  const due_day = parseInt(formData.get("due_day"));
+  const amount = parseFloat(formData.get("amount")).toFixed(2);
+
+  const id = Date.now().toString();
+  const bill = { id, name, due_day, amount };
+  bills.push(bill);
+  localStorage.setItem("bills", JSON.stringify(bills));
+
+  calendar.removeAllEvents();
+  calendar.addEventSource(generateRecurringEvents());
+
+  billForm.reset();
+  showBillsForDay(due_day);
+});
+
+function generateRecurringEvents() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  return bills.map(bill => {
+    const date = new Date(year, month, bill.due_day);
+    return {
+      title: '',
+      start: date.toISOString().split("T")[0],
+      allDay: true
+    };
+  });
+}
+
+function showBillsForDay(day) {
+  selectedDayBills.innerHTML = "";
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const dateStr = new Date(year, month, day).toISOString().split("T")[0];
+
+  const filtered = bills.filter(b => parseInt(b.due_day) === day);
+  if (filtered.length === 0) {
+    selectedDayBills.innerHTML = `<div class="bill-item">No bills for this day.</div>`;
+    return;
+  }
+
+  filtered.forEach(bill => {
+    const div = document.createElement("div");
+    div.className = "bill-item";
+
+    const content = document.createElement("div");
+    content.innerHTML = `<strong>${bill.name}</strong> – $${bill.amount}`;
+
+    const actions = document.createElement("div");
+    actions.style.marginTop = "10px";
+
+    const editBtn = document.createElement("button");
+    editBtn.textContent = "Edit";
+    editBtn.className = "btn btn-edit";
+    editBtn.onclick = () => startEditBill(bill);
+
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "Delete";
+    delBtn.className = "btn btn-delete";
+    delBtn.onclick = () => deleteBill(bill.id);
+
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+
+    div.appendChild(content);
+    div.appendChild(actions);
+    selectedDayBills.appendChild(div);
+  });
+}
+
+function startEditBill(bill) {
+  const name = prompt("Edit bill name:", bill.name);
+  if (name === null) return;
+
+  const amount = prompt("Edit amount:", bill.amount);
+  if (amount === null) return;
+
+  const due_day = prompt("Edit due day (1–28):", bill.due_day);
+  if (due_day === null || isNaN(due_day) || due_day < 1 || due_day > 28) return;
+
+  bill.name = name;
+  bill.amount = parseFloat(amount).toFixed(2);
+  bill.due_day = parseInt(due_day);
+
+  localStorage.setItem("bills", JSON.stringify(bills));
+  calendar.removeAllEvents();
+  calendar.addEventSource(generateRecurringEvents());
+  showBillsForDay(bill.due_day);
 }
 
 function deleteBill(id) {
-  fetch(`/api/bills/${id}`, { method: 'DELETE' })
-    .then(() => {
-      loadBills();
-      calendar.refetchEvents();
-    });
+  bills = bills.filter(b => b.id !== id);
+  localStorage.setItem("bills", JSON.stringify(bills));
+  calendar.removeAllEvents();
+  calendar.addEventSource(generateRecurringEvents());
+  selectedDayBills.innerHTML = "";
 }
-
-function editBill(id) {
-  const newName = prompt("New bill name:");
-  const newAmount = prompt("New amount:");
-  const newDay = prompt("New due day (1–28):");
-  fetch(`/api/bills/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: newName, amount: newAmount, due_day: newDay })
-  })
-    .then(() => {
-      loadBills();
-      calendar.refetchEvents();
-    });
-}
-
-// Load bills when the page is ready
-document.addEventListener('DOMContentLoaded', () => {
-  loadBills();
-});
-
-function renderBills(bills) {
-  const billList = document.getElementById('billList');
-  billList.innerHTML = '';
-
-  bills.forEach(bill => {
-    const billDiv = document.createElement('div');
-    billDiv.className = 'bill-item';
-    
-    billDiv.innerHTML = `
-      <div class="bill-content">
-        <div class="bill-details">
-          <strong>${bill.name}</strong> - $${bill.amount} (Due: ${bill.due_day})
-        </div>
-        <div class="bill-actions">
-          <button class="btn btn-edit" onclick="toggleEdit('${bill.id}')">Edit</button>
-          <button class="btn btn-delete" onclick="deleteBill('${bill.id}')">Delete</button>
-        </div>
-      </div>
-      <form class="edit-form" id="edit-${bill.id}">
-        <input name="name" value="${bill.name}" placeholder="Bill Name" required/>
-        <input name="due_day" type="number" value="${bill.due_day}" min="1" max="28" placeholder="Day" required/>
-        <input name="amount" type="number" step="0.01" value="${bill.amount}" placeholder="Amount" required/>
-        <div class="bill-actions">
-          <button type="submit" class="btn btn-save">Save</button>
-          <button type="button" class="btn btn-cancel" onclick="toggleEdit('${bill.id}')">Cancel</button>
-        </div>
-      </form>
-    `;
-
-    const editForm = billDiv.querySelector(`#edit-${bill.id}`);
-    editForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const formData = new FormData(editForm);
-      const updatedBill = {
-        id: bill.id,
-        name: formData.get('name'),
-        due_day: parseInt(formData.get('due_day')),
-        amount: parseFloat(formData.get('amount'))
-      };
-      updateBill(updatedBill);
-      toggleEdit(bill.id);
-    });
-
-    billList.appendChild(billDiv);
-  });
-}
-
-function toggleEdit(billId) {
-  const editForm = document.getElementById(`edit-${billId}`);
-  editForm.classList.toggle('active');
-}
-
-function updateBill(updatedBill) {
-  const bills = JSON.parse(localStorage.getItem('bills') || '[]');
-  const index = bills.findIndex(b => b.id === updatedBill.id);
-  if (index !== -1) {
-    bills[index] = updatedBill;
-    localStorage.setItem('bills', JSON.stringify(bills));
-    renderBills(bills);
-    calendar.refetchEvents();
-  }
-}
-
