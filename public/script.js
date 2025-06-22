@@ -7,11 +7,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const calendarEl = document.getElementById("calendar");
 
   calendar = new FullCalendar.Calendar(calendarEl, {
-    initialView: window.innerWidth < 600 ? 'dayGridDay' : 'dayGridMonth',
+    initialView: 'dayGridMonth', // Always start in month view
     selectable: true,
     events: generateRecurringEvents(),
     dateClick: function(info) {
-      showBillsForDay(parseInt(info.dateStr.split("-")[2]));
+      calendar.changeView('dayGridDay', info.dateStr); // Switch to day view
+      showBillsForDay(parseInt(info.dateStr.split("-")[2])); // Show bills for clicked day
     }
   });
 
@@ -45,7 +46,7 @@ function generateRecurringEvents() {
   return bills.map(bill => {
     const date = new Date(year, month, bill.due_day);
     return {
-      title: '',
+      title: bill.name + " - $" + bill.amount,
       start: date.toISOString().split("T")[0],
       allDay: true
     };
@@ -93,6 +94,23 @@ function showBillsForDay(day) {
     selectedDayBills.appendChild(div);
   });
 }
+
+function showBackToMonthButton() {
+  let btn = document.getElementById("backToMonthBtn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "backToMonthBtn";
+    btn.textContent = "Back to Month";
+    btn.style.margin = "10px 0";
+    btn.onclick = () => {
+      calendar.changeView('dayGridMonth');
+      btn.remove();
+      selectedDayBills.innerHTML = "";
+    };
+    calendar.el.parentNode.insertBefore(btn, calendar.el);
+  }
+}
+
 
 function startEditBill(bill) {
   const name = prompt("Edit bill name:", bill.name);
