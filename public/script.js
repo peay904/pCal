@@ -7,17 +7,17 @@ document.addEventListener("DOMContentLoaded", function () {
   const calendarEl = document.getElementById("calendar");
 
   calendar = new FullCalendar.Calendar(calendarEl, {
-    initialView: 'dayGridMonth', // Always start in month view
+    initialView: 'dayGridMonth',
     selectable: true,
     events: generateRecurringEvents(),
     dateClick: function(info) {
-      calendar.changeView('dayGridDay', info.dateStr); // Switch to day view
-      showBillsForDay(parseInt(info.dateStr.split("-")[2])); // Show bills for clicked day
+      calendar.changeView('dayGridDay', info.dateStr);
+      showBillsForDay(parseInt(info.dateStr.split("-")[2]));
+      showBackToMonthButton();
     }
   });
 
   calendar.render();
-  showBillsForDay(new Date().getDate());
 });
 
 billForm.addEventListener("submit", function (e) {
@@ -46,7 +46,7 @@ function generateRecurringEvents() {
   return bills.map(bill => {
     const date = new Date(year, month, bill.due_day);
     return {
-      title: bill.name + " - $" + bill.amount,
+      title: bill.name + " – $" + bill.amount,
       start: date.toISOString().split("T")[0],
       allDay: true
     };
@@ -55,11 +55,6 @@ function generateRecurringEvents() {
 
 function showBillsForDay(day) {
   selectedDayBills.innerHTML = "";
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const dateStr = new Date(year, month, day).toISOString().split("T")[0];
-
   const filtered = bills.filter(b => parseInt(b.due_day) === day);
   if (filtered.length === 0) {
     selectedDayBills.innerHTML = `<div class="bill-item">No bills for this day.</div>`;
@@ -110,7 +105,6 @@ function showBackToMonthButton() {
     calendar.el.parentNode.insertBefore(btn, calendar.el);
   }
 }
-
 
 function startEditBill(bill) {
   const name = prompt("Edit bill name:", bill.name);
